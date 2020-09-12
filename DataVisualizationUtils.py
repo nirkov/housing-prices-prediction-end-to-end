@@ -34,6 +34,7 @@ def cross_correlation_matrix(data_frame):
     This correlation coefficient is called 'pearson's r'.
     :return: void
     """
+
     plt.figure(figsize=(15, 15))
     sn.heatmap(data_frame.corr(), annot=True, vmin=-1, vmax=1)
     plt.show()
@@ -42,7 +43,7 @@ def cross_correlation_matrix(data_frame):
 def cross_correlation_vector(data_frame, attribute):
     """
     :param data_frame: pandas DataFrame
-    :param attribute:  the attribute what we display the cross correlation between it with the other attributes
+    :param attribute:  the attribute that we display the cross correlation between it with the other attributes
     :return: void
     """
 

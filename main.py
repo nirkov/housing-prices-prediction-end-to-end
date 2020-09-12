@@ -40,12 +40,12 @@ def main():
     housing_data_frame["bedrooms_per_rooms"] = housing_data_frame["total_bedrooms"] / housing_data_frame["total_rooms"];
     housing_data_frame["population_per_household"] = housing_data_frame["population"] / housing_data_frame["households"];
 
-    # By checking again the correlation matrix we can see that we created new more correlated feature with
-    # the house prices.
+    # By re-examination of the correlation matrix, we can see that we created new features that more correlated with
+    # house prices.
     DataVisualizationUtils.cross_correlation_vector(housing_data_frame, "median_house_value")
 
-    # split to train set and test set
-    test_data_frame, train_data_frame = data_utils.split_test_train_set_by_stratefied_sampling(housing_data_frame, "median_income",
+    # split to train set and test set using stratified sampling
+    test_data_frame, train_data_frame = data_utils.split_test_train_set_by_stratified_sampling(housing_data_frame, "median_income",
                                                                                  [0., 1.5, 3., 4.5, 6., np.inf]);
 
     # create label data frame
