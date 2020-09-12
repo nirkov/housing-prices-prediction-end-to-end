@@ -3,42 +3,65 @@ import os
 import sklearn as sk
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sn
-from DataLoaderUtils import DataLoaderUtils
-from pandas.plotting import scatter_matrix
-
+import DataVisualizationUtils
+from DataUtils import DataUtils
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
 
 def main():
-    dataLoader = DataLoaderUtils()
+    data_utils = DataUtils()
 
     # load the data from CSV file to pandas DataFrame
-    housingDataFrame = dataLoader.loadCsvToDataFrame(os.path.join("dataset", "housing", "housing.csv"));
-
-    # split the data to test and train set, by stratified sampling.
-    testSet, trainSet = dataLoader.splitToTestTrainSetByStratefiedSampling(housingDataFrame, "median_income", [0.,1.5,3.,4.5,6., np.inf]);
+    housing_data_frame = data_utils.load_csv_to_pandas_df(os.path.join("dataset", "housing", "housing.csv"));
 
     # Visualization of the data - geographically (by lat lang)
-    housing = trainSet.copy();
-    housing.plot(kind="scatter", x="longitude", y="latitude", alpha=0.4,
-                 s=housing["population"]/100, label="population size (Expressed by the circle radius)", figsize=(15,10),
-                 c="median_house_value", cmap=plt.get_cmap("jet"), colorbar=True);
-    plt.legend();
-    plt.show();
+    DataVisualizationUtils.scatter_plot(housing_data_frame,
+                                        "median_house_value",
+                                        x_name="longitude",
+                                        y_name="latitude",
+                                        circle_radius=housing_data_frame["population"]/100,
+                                        label="population size (Expressed by the circle radius)")
 
-    # Trying to understand the features that most correlate with the house prices. We can calculate the
-    # cross correlation between every pair of feature and tests the house prices specifically.
-    # This correlation coefficient is called 'pearson's r'.
-    corrMatrix = housing.corr();
-    plt.figure(figsize=(10,10))
-    sn.heatmap(corrMatrix, annot=True, vmin=-1, vmax=1)
-    plt.show()
+    # cross correlation matrix
+    DataVisualizationUtils.cross_correlation_matrix(housing_data_frame);
 
-    # We can also to check the scatter matrix of all the possible features pair (or only part of them in this case)
-    # and trying to understand if there is also a non-linear correlation between them (because the previous calculation
-    # only can find a linear correlation between features).
-    attribute = ["median_house_value", "median_income", "total_rooms", "housing_median_age"];
-    scatter_matrix(housing[attribute], figsize=(15, 10))
-    plt.show()
+    # scatter plot matrix
+    attribute_scatter_plot_matrix = ["median_house_value", "median_income", "total_rooms", "housing_median_age"];
+    DataVisualizationUtils.scatter_plot_matrix(housing_data_frame, attribute_scatter_plot_matrix);
+
+    # Create more relevant/make sense new columns from the data which help us to predict
+    # TODO: NEED TO MAKE IT AN ATTRIBUTE TRANSFORM
+    housing_data_frame["rooms_per_household"] = housing_data_frame["total_rooms"] / housing_data_frame["households"];
+    housing_data_frame["bedrooms_per_rooms"] = housing_data_frame["total_bedrooms"] / housing_data_frame["total_rooms"];
+    housing_data_frame["population_per_household"] = housing_data_frame["population"] / housing_data_frame["households"];
+
+    # By checking again the correlation matrix we can see that we created new more correlated feature with
+    # the house prices.
+    DataVisualizationUtils.cross_correlation_vector(housing_data_frame, "median_house_value")
+
+    # Prapare the data for ML algorithm
+
+    numerical_pipeline = Pipeline([
+        ('imputer', SimpleImputer(strategy="median")),
+        ('std_scalar', StandardScaler()),
+    ])
+
+    numerical_attribute = list(housing_data_frame.columns)
+    numerical_attribute.remove("ocean_proximity");
+    categorical_attribute = ["ocean_proximity"]
+
+    full_pipeline = ColumnTransformer([
+        ('numerical', numerical_pipeline, numerical_attribute),
+        ('categorical', OneHotEncoder(), categorical_attribute)
+    ])
+
+    housing_data_prepared = full_pipeline.fit_transform(housing_data_frame)
+
+    testSet, trainSet = data_utils.split_test_train_set_by_stratefied_sampling(housing_data_frame, "median_income",
+                                                                                [0., 1.5, 3., 4.5, 6., np.inf]);
 
     stop = 0
 # Press the green button in the gutter to run the script.
