@@ -10,11 +10,13 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
 
 def main():
     data_utils = DataUtils()
 
-    # load the data from CSV file to pandas DataFrame
+    # load the data from CSV file to pandas DataFrame (start from the project root directory)
     housing_data_frame = data_utils.load_csv_to_pandas_df(os.path.join("dataset", "housing", "housing.csv"));
 
     # Visualization of the data - geographically (by lat lang)
@@ -42,14 +44,22 @@ def main():
     # the house prices.
     DataVisualizationUtils.cross_correlation_vector(housing_data_frame, "median_house_value")
 
-    # Prapare the data for ML algorithm
+    # split to train set and test set
+    test_data_frame, train_data_frame = data_utils.split_test_train_set_by_stratefied_sampling(housing_data_frame, "median_income",
+                                                                                 [0., 1.5, 3., 4.5, 6., np.inf]);
 
+    # create label data frame
+    train_labels_data_frame = data_utils.copy_and_drop_column(train_data_frame, "median_house_value")
+    test_labels_data_frame = data_utils.copy_and_drop_column(test_data_frame, "median_house_value")
+
+
+    # Prapare the data for ML algorithm
     numerical_pipeline = Pipeline([
         ('imputer', SimpleImputer(strategy="median")),
         ('std_scalar', StandardScaler()),
     ])
 
-    numerical_attribute = list(housing_data_frame.columns)
+    numerical_attribute = list(test_data_frame.columns)
     numerical_attribute.remove("ocean_proximity");
     categorical_attribute = ["ocean_proximity"]
 
@@ -58,13 +68,16 @@ def main():
         ('categorical', OneHotEncoder(), categorical_attribute)
     ])
 
-    housing_data_prepared = full_pipeline.fit_transform(housing_data_frame)
+    housing_train_data_prepared = full_pipeline.fit_transform(train_data_frame)
+    housing_test_data_prepared = full_pipeline.fit_transform(test_data_frame)
 
-    testSet, trainSet = data_utils.split_test_train_set_by_stratefied_sampling(housing_data_frame, "median_income",
-                                                                                [0., 1.5, 3., 4.5, 6., np.inf]);
+    # training the algorithm
+    linear_regression = LinearRegression();
+    linear_regression.fit(housing_train_data_prepared, train_labels_data_frame);
+    house_prices_prediction_result = linear_regression.predict(housing_test_data_prepared);
+    mean_square_error = np.sqrt(mean_squared_error(house_prices_prediction_result, test_labels_data_frame));
+    print(mean_square_error)
 
-    stop = 0
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     main();
 
