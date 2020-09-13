@@ -1,10 +1,9 @@
 import DataVisualizationUtils as dvu
-import os
-import sklearn as sk
 import numpy as np
-import matplotlib.pyplot as plt
+import os
 import DataVisualizationUtils
 from DataUtils import DataUtils
+
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import OneHotEncoder
@@ -12,6 +11,11 @@ from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import cross_val_score
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV
+
 
 def main():
     data_utils = DataUtils()
@@ -68,15 +72,54 @@ def main():
         ('categorical', OneHotEncoder(), categorical_attribute)
     ])
 
-    housing_train_data_prepared = full_pipeline.fit_transform(train_data_frame)
-    housing_test_data_prepared = full_pipeline.fit_transform(test_data_frame)
+
+    housing_prepared = full_pipeline.fit_transform(housing_data_frame);
+    housing_train_data_prepared = housing_prepared.take(train_data_frame.index, axis=0);
+    housing_test_data_prepared = housing_prepared.take(test_data_frame.index, axis=0);
+
 
     # training the algorithm
     linear_regression = LinearRegression();
     linear_regression.fit(housing_train_data_prepared, train_labels_data_frame);
-    house_prices_prediction_result = linear_regression.predict(housing_test_data_prepared);
-    mean_square_error = np.sqrt(mean_squared_error(house_prices_prediction_result, test_labels_data_frame));
-    print(mean_square_error)
+    prediction_result_linear_regression = linear_regression.predict(housing_test_data_prepared);
+    mean_square_error_linear_regression = np.sqrt(mean_squared_error(prediction_result_linear_regression, test_labels_data_frame));
+    DataVisualizationUtils.print_with_title("Linear Regression MSE", mean_square_error_linear_regression)
+
+    # Trying decision tree model in case our data contain alot of non-linear correlation between the features
+    tree_regression = DecisionTreeRegressor();
+    tree_regression.fit(housing_train_data_prepared, train_labels_data_frame);
+    prediction_result_decision_tree = tree_regression.predict(housing_test_data_prepared);
+    mean_square_error_decision_tree = np.sqrt(mean_squared_error(prediction_result_decision_tree, test_labels_data_frame));
+    DataVisualizationUtils.print_with_title("Decision Tree MSE", mean_square_error_decision_tree)
+
+    # Trying cross validation
+    scores = cross_val_score(DecisionTreeRegressor(), housing_train_data_prepared, train_labels_data_frame, scoring="neg_mean_squared_error", cv=10);
+    scores = np.sqrt(-scores) # sklearn uses utility function rather than cost function so the results are negative.
+    # print(scores);
+    DataVisualizationUtils.print_with_title("Decision Tree Cross Validation MSE", scores.mean())
+    # print(scores.std()); # 2566.8761488982286
+
+    # Trying random forest
+    random_forest = RandomForestRegressor();
+    random_forest.fit(housing_train_data_prepared, train_labels_data_frame.values.ravel());
+    prediction_result_random_forest = random_forest.predict(housing_test_data_prepared);
+    mean_square_error_random_forest = np.sqrt(mean_squared_error(prediction_result_random_forest, test_labels_data_frame));
+    DataVisualizationUtils.print_with_title("Rnadom Forest MSE", mean_square_error_random_forest)
+
+
+    # Trying grid search
+    param_grid_search = [
+        {'n_estimators':[3, 10, 30], 'max_features': [2, 4, 6 ,8]},
+        {'bootstrap': [False], 'n_estimators': [3, 10], 'max_features': [2, 3, 4]}
+    ];
+
+    random_forest_grid_search = RandomForestRegressor();
+    grid_search_results = GridSearchCV(random_forest_grid_search, param_grid_search, cv=5, scoring="neg_mean_squared_error", return_train_score=True);
+    grid_search_results.fit(housing_train_data_prepared, train_labels_data_frame.values.ravel());
+    cv_results = grid_search_results.cv_results_;
+    DataVisualizationUtils.print_with_title("Rnadom Forest with Grid Search MSE", "")
+    for mean_score, param in zip(cv_results['mean_test_score'], cv_results['params']):
+        print(np.sqrt(-mean_score), param)
 
 if __name__ == '__main__':
     main();

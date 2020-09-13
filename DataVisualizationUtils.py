@@ -70,3 +70,7 @@ def scatter_plot_matrix(data_frame, attributes):
 
 def describe_data(data_frame):
     data_frame.describe();
+
+def print_with_title(title, body):
+    print("====================================================");
+    print(title, ": ", '\n', body, '\n');
